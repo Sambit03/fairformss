@@ -18,9 +18,6 @@ type FormState = {
   description: string | null;
   /** Form settings like theme, behavior, etc. */
   settings: Form["settings"];
-  connectedAddress?: string;
-  /** Tracks form has unsave changes since last published  */
-  isDirty: boolean;
 };
 
 /**
@@ -61,7 +58,6 @@ type FormAction =
       type: "UPDATE_FORM_DETAILS";
       payload: { title?: string; description?: string | null };
     }
-  | { type: "MARK_CLEAN"; payload: boolean }
   /** Updates form settings */
   | { type: "UPDATE_SETTINGS"; payload: Partial<Form["settings"]> }
   | { type: "CREATE_FROM_TEMPLATE"; payload: FormTemplate }
@@ -77,7 +73,6 @@ const initialState: FormState = {
   elements: [],
   activeElementId: null,
   isPreviewMode: false,
-  isDirty: false,
   title: "Untitled Form",
   description: null,
   settings: {
@@ -99,7 +94,6 @@ const initialState: FormState = {
       enableEmailNotifications: false,
       notificationEmails: [],
     },
-
     web3: {
       enabled: false,
       tokenGating: {
@@ -125,14 +119,13 @@ function formReducer(state: FormState, action: FormAction): FormState {
     case "SET_INITIAL_STATE":
       // When loading an existing form, merge it with our initial state
       // This ensures we have all required properties
-      return { ...initialState, ...action.payload, isDirty: false };
+      return { ...initialState, ...action.payload };
 
     case "ADD_ELEMENT":
       // Add a new element to the end of the elements array
       return {
         ...state,
         elements: [...state.elements, action.payload],
-        isDirty: true,
       };
 
     case "UPDATE_ELEMENT": {
@@ -151,13 +144,12 @@ function formReducer(state: FormState, action: FormAction): FormState {
           return {
             ...element,
             ...action.payload.updates,
-            isDirty: true,
             type: element.type, // Important: keep the original type
             properties: {
               ...element.properties,
               ...(action.payload.updates.properties || {}),
             },
-          } as unknown as FormElement;
+          } as FormElement;
         }),
       };
     }
@@ -169,7 +161,6 @@ function formReducer(state: FormState, action: FormAction): FormState {
         elements: state.elements.filter(
           (element) => element.id !== action.payload
         ),
-        isDirty: true,
       };
 
     case "REORDER_ELEMENTS":
@@ -177,7 +168,6 @@ function formReducer(state: FormState, action: FormAction): FormState {
       return {
         ...state,
         elements: action.payload,
-        isDirty: true,
       };
 
     case "SET_ACTIVE_ELEMENT":
@@ -185,7 +175,6 @@ function formReducer(state: FormState, action: FormAction): FormState {
       return {
         ...state,
         activeElementId: action.payload,
-        isDirty: true,
       };
 
     case "UPDATE_FORM_DETAILS":
@@ -198,7 +187,6 @@ function formReducer(state: FormState, action: FormAction): FormState {
         ...(action.payload.description !== undefined && {
           description: action.payload.description,
         }),
-        isDirty: true,
       };
 
     case "UPDATE_SETTINGS":
@@ -206,7 +194,6 @@ function formReducer(state: FormState, action: FormAction): FormState {
       return {
         ...state,
         settings: { ...state.settings, ...action.payload },
-        isDirty: true,
       };
 
     case "CREATE_FROM_TEMPLATE":
@@ -223,12 +210,6 @@ function formReducer(state: FormState, action: FormAction): FormState {
             notificationEmails: [], // Reset notification emails
           },
         },
-        isDirty: true,
-      };
-    case "MARK_CLEAN":
-      return {
-        ...state,
-        isDirty: false,
       };
 
     case "SAVE_AS_TEMPLATE":
